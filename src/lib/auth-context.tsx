@@ -39,6 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithGoogle = async () => {
     try {
+      await setPersistence(firebaseAuth, browserLocalPersistence);
       await signInWithPopup(firebaseAuth, googleProvider);
     } catch (err: unknown) {
       // Fallbacks for environments where sessionStorage is unavailable or popups are blocked.
