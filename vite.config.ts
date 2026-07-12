@@ -6,8 +6,10 @@ import tsconfigPaths from "vite-tsconfig-paths";
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
   const repositoryName = env.GITHUB_REPOSITORY?.split("/")[1] ?? "";
-  const base =
-    env.GITHUB_ACTIONS && repositoryName ? `/${repositoryName}/` : "/";
+  // const base =
+  //   env.GITHUB_ACTIONS && repositoryName ? `/${repositoryName}/` : "/";
+
+  const base = "/zionsports/";
 
   return {
     base,

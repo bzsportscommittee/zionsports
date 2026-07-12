@@ -90,11 +90,19 @@ function normalizeRegistrationsResponse(response: unknown): Registration[] {
   if (!response || typeof response !== "object") return [];
 
   const data = response as Record<string, unknown>;
-  if (Array.isArray(data.data)) return data.data as Registration[];
-  if (Array.isArray(data.items)) return data.items as Registration[];
-  if (Array.isArray(data.registrations))
-    return data.registrations as Registration[];
-  if ("registrationGuid" in data) return [data as unknown as Registration];
+  const wrappers = ["data", "items", "registrations", "value", "results"];
+
+  for (const wrapper of wrappers) {
+    const wrapped = data[wrapper];
+    if (Array.isArray(wrapped)) return wrapped as Registration[];
+    if (wrapped && typeof wrapped === "object") {
+      const nestedArray = Object.values(wrapped).find(Array.isArray);
+      if (Array.isArray(nestedArray)) return nestedArray as Registration[];
+    }
+  }
+
+  if ("registrationGuid" in data || "registrationId" in data)
+    return [data as unknown as Registration];
 
   const firstArray = Object.values(data).find(Array.isArray);
   if (Array.isArray(firstArray)) return firstArray as Registration[];

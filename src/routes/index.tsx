@@ -178,8 +178,9 @@ function Index() {
               Zion Sports Event Registration - Aug 2026
             </h4>
             <p className="mt-2 text-sm text-muted-foreground sm:text-base">
-              All events will be held on weekends in August 2026 (dates to be
-              announced). Use this form to register your entire family.
+              All events will be held on weekends in August 1st/2nd and 8th/9th
+              (dates to be announced). Use this form to register your entire
+              family.
               <br />
               Assistance : <a href="tel:+919597971915">
                 {" "}
@@ -303,7 +304,12 @@ function RegistrationsList({
       const normalized = Array.isArray(data) ? data : [];
       loadedEmailRef.current = email;
       setItems(normalized);
-      onRegistrationsChange(normalized.length > 0);
+      if (normalized.length === 0) {
+        onNoRegistrations();
+        onRegistrationsChange(false);
+      } else {
+        onRegistrationsChange(true);
+      }
     } catch (error) {
       const message = String(error);
       if (
@@ -545,6 +551,7 @@ function RegistrationForm({
   const [form, setForm] = useState<FormState>(emptyForm());
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [confirmFeeAccepted, setConfirmFeeAccepted] = useState(false);
   const isSubmittingRef = useRef(false);
 
   useEffect(() => {
@@ -590,6 +597,7 @@ function RegistrationForm({
       setForm(emptyForm());
     }
     setErrors({});
+    setConfirmFeeAccepted(false);
   }, [editing]);
 
   const updateField = <K extends keyof FormState>(
@@ -665,6 +673,10 @@ function RegistrationForm({
       }
     });
 
+    if (totalRegistrationFee > 0 && !confirmFeeAccepted) {
+      e.confirm = "Required";
+    }
+
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -717,6 +729,24 @@ function RegistrationForm({
   };
 
   const canAdd = form.participants.length < MAX_PARTICIPANTS;
+
+  const totalRegistrationFee = useMemo(() => {
+    const feeRegex = /\[Fees\s*Rs\.?\s*([0-9,]+)\]/i;
+    let total = 0;
+    for (const p of form.participants) {
+      const sports = Array.isArray(p.sportsParticipatingIn)
+        ? p.sportsParticipatingIn
+        : [];
+      for (const s of sports) {
+        const m = String(s).match(feeRegex);
+        if (m) {
+          const n = Number(m[1].replace(/,/g, ""));
+          if (!Number.isNaN(n)) total += n;
+        }
+      }
+    }
+    return total;
+  }, [form.participants]);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -834,7 +864,23 @@ function RegistrationForm({
           <Plus className="mr-1 h-4 w-4" /> Add Participant
         </Button>
       </div>
-
+      {totalRegistrationFee > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <Checkbox
+            id="confirmfeepayment"
+            checked={confirmFeeAccepted}
+            onCheckedChange={(v) => setConfirmFeeAccepted(!!v)}
+            disabled={saving}
+          />
+          <Label htmlFor="confirmfeepayment" className="text-sm">
+            I confirm to pay The Total Registration Fee of{" "}
+            <b>₹{totalRegistrationFee}</b> for the above participants.
+          </Label>
+          {errors.confirm && (
+            <p className="text-xs text-destructive">{errors.confirm}</p>
+          )}
+        </div>
+      )}
       <div className="flex flex-wrap items-center justify-end gap-2">
         {editing && (
           <Button
