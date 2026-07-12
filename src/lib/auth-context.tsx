@@ -8,6 +8,9 @@ import {
 import {
   onAuthStateChanged,
   signInWithPopup,
+  signInWithRedirect,
+  setPersistence,
+  browserLocalPersistence,
   signOut,
   type User,
 } from "firebase/auth";
@@ -35,7 +38,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signInWithGoogle = async () => {
-    await signInWithPopup(firebaseAuth, googleProvider);
+    try {
+      await signInWithPopup(firebaseAuth, googleProvider);
+    } catch (err: unknown) {
+      // Fallbacks for environments where sessionStorage is unavailable or popups are blocked.
+      try {
+        await setPersistence(firebaseAuth, browserLocalPersistence);
+        await signInWithRedirect(firebaseAuth, googleProvider);
+      } catch (e) {
+        // Re-throw original error if fallback also fails so UI can surface it.
+        throw err;
+      }
+    }
   };
 
   const logout = async () => {
