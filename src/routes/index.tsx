@@ -98,15 +98,180 @@ const normalizeTowerValue = (value: unknown): Tower | "" => {
   return "";
 };
 
+// Detect if user is in WhatsApp or other in-app browser
+function isInAppBrowser(): boolean {
+  const ua = navigator.userAgent.toLowerCase();
+  return (
+    ua.includes("whatsapp") ||
+    ua.includes("instagram") ||
+    ua.includes("facebook") ||
+    ua.includes("fban") ||
+    ua.includes("fbav") ||
+    ua.includes("line ") ||
+    ua.includes("telegram")
+  );
+}
+
+// Get available browsers with intent schemes
+interface Browser {
+  name: string;
+  scheme: string;
+  fallbackUrl: string;
+}
+
+function getAvailableBrowsers(): Browser[] {
+  const isAndroid = navigator.userAgent.includes("Android");
+
+  if (isAndroid) {
+    return [
+      {
+        name: "Chrome",
+        scheme:
+          "intent://{url}#Intent;package=com.android.chrome;scheme=https;end;",
+        fallbackUrl:
+          "https://play.google.com/store/apps/details?id=com.android.chrome",
+      },
+      {
+        name: "Firefox",
+        scheme:
+          "intent://{url}#Intent;package=org.mozilla.firefox;scheme=https;end;",
+        fallbackUrl:
+          "https://play.google.com/store/apps/details?id=org.mozilla.firefox",
+      },
+      {
+        name: "Edge",
+        scheme:
+          "intent://{url}#Intent;package=com.microsoft.emmx;scheme=https;end;",
+        fallbackUrl:
+          "https://play.google.com/store/apps/details?id=com.microsoft.emmx",
+      },
+      {
+        name: "Opera",
+        scheme:
+          "intent://{url}#Intent;package=com.opera.browser;scheme=https;end;",
+        fallbackUrl:
+          "https://play.google.com/store/apps/details?id=com.opera.browser",
+      },
+    ];
+  } else {
+    // iOS
+    return [
+      {
+        name: "Safari (Default)",
+        scheme: "",
+        fallbackUrl: window.location.href,
+      },
+      {
+        name: "Chrome",
+        scheme: "googlechrome://openurl?url={url}",
+        fallbackUrl: "https://apps.apple.com/app/google-chrome/id535886823",
+      },
+      {
+        name: "Firefox",
+        scheme: "firefox://open-url?url={url}",
+        fallbackUrl:
+          "https://apps.apple.com/app/firefox-private-safe-browser/id989673669",
+      },
+      {
+        name: "Edge",
+        scheme: "microsoft-edge-https://{url}",
+        fallbackUrl: "https://apps.apple.com/app/microsoft-edge/id1288723196",
+      },
+    ];
+  }
+}
+
+function openInBrowser(browser: Browser, url: string) {
+  try {
+    if (!browser.scheme) {
+      // Safari default
+      window.location.href = url;
+      return;
+    }
+
+    const processedScheme = browser.scheme.replace(
+      /{url}/g,
+      encodeURIComponent(url),
+    );
+    window.location.href = processedScheme;
+
+    // Fallback after 1 second if app not found
+    setTimeout(() => {
+      window.location.href = browser.fallbackUrl;
+    }, 1000);
+  } catch (error) {
+    console.error("Error opening browser:", error);
+    window.location.href = browser.fallbackUrl;
+  }
+}
+
+function BrowserSelectionDialog({
+  open,
+  onClose,
+  onBrowserSelect,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onBrowserSelect: (browser: Browser) => void;
+}) {
+  const browsers = getAvailableBrowsers();
+
+  return (
+    <AlertDialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <AlertDialogContent className="max-w-sm">
+        <AlertDialogHeader>
+          <AlertDialogTitle>Open in Browser</AlertDialogTitle>
+          <AlertDialogDescription>
+            Please select a browser to continue with Google sign-in. This will
+            provide a better experience and avoid sandbox restrictions.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <div className="space-y-2 py-4">
+          {browsers.map((browser) => (
+            <Button
+              key={browser.name}
+              type="button"
+              variant="outline"
+              className="w-full justify-start text-left"
+              onClick={() => {
+                onBrowserSelect(browser);
+                onClose();
+              }}
+            >
+              {browser.name}
+            </Button>
+          ))}
+        </div>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
 function Index() {
   const { user, loading, signInWithGoogle, logout } = useAuth();
   const [tab, setTab] = useState<"list" | "register">("list");
   const [editing, setEditing] = useState<Registration | null>(null);
   const [signingIn, setSigningIn] = useState(false);
   const [hasRegistrations, setHasRegistrations] = useState(false);
+  const [inAppBrowser, setInAppBrowser] = useState(false);
+  const [showBrowserSelection, setShowBrowserSelection] = useState(false);
   const showRegisterTab = !hasRegistrations;
 
+  useEffect(() => {
+    setInAppBrowser(isInAppBrowser());
+  }, []);
+
   const handleSignIn = async () => {
+    // If in WhatsApp/in-app browser, show browser selection dialog
+    if (inAppBrowser) {
+      setShowBrowserSelection(true);
+      return;
+    }
+
+    // Normal sign-in flow
     setSigningIn(true);
     try {
       await signInWithGoogle();
@@ -116,6 +281,11 @@ function Index() {
     } finally {
       setSigningIn(false);
     }
+  };
+
+  const handleBrowserSelect = (browser: Browser) => {
+    const currentUrl = window.location.href;
+    openInBrowser(browser, currentUrl);
   };
 
   if (loading) {
@@ -139,7 +309,16 @@ function Index() {
               manage your registrations.
             </p>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
+            {inAppBrowser && (
+              <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3">
+                <p className="text-sm text-yellow-800">
+                  ⚠️ <strong>Better experience:</strong> Please open this link
+                  in your device's default browser (Chrome, Safari, etc.) for a
+                  smoother login experience.
+                </p>
+              </div>
+            )}
             <Button
               onClick={handleSignIn}
               disabled={signingIn}
@@ -148,10 +327,16 @@ function Index() {
               {signingIn ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : null}
-              Sign in with Google
+              {inAppBrowser ? "Open in Browser" : "Sign in with Google"}
             </Button>
           </CardContent>
         </Card>
+
+        <BrowserSelectionDialog
+          open={showBrowserSelection}
+          onClose={() => setShowBrowserSelection(false)}
+          onBrowserSelect={handleBrowserSelect}
+        />
       </div>
     );
   }
