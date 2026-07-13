@@ -9,8 +9,10 @@ import {
   onAuthStateChanged,
   signInWithPopup,
   signInWithRedirect,
+  getRedirectResult,
   setPersistence,
   browserLocalPersistence,
+  indexedDBLocalPersistence,
   signOut,
   type User,
 } from "firebase/auth";
@@ -29,6 +31,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Handle redirect result from Google sign-in (CRITICAL FIX)
+  useEffect(() => {
+    const handleRedirectResult = async () => {
+      try {
+        const result = await getRedirectResult(firebaseAuth);
+        if (result?.user) {
+          console.log("Redirect sign-in successful");
+        }
+      } catch (error) {
+        console.error("Redirect result error:", error);
+      }
+    };
+    handleRedirectResult();
+  }, []);
+
+  // Monitor auth state changes
   useEffect(() => {
     const unsub = onAuthStateChanged(firebaseAuth, (u) => {
       setUser(u);
@@ -39,12 +57,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithGoogle = async () => {
     try {
-      await setPersistence(firebaseAuth, browserLocalPersistence);
+      await setPersistence(firebaseAuth, indexedDBLocalPersistence);
       await signInWithPopup(firebaseAuth, googleProvider);
     } catch (err: unknown) {
       // Fallbacks for environments where sessionStorage is unavailable or popups are blocked.
       try {
-        await setPersistence(firebaseAuth, browserLocalPersistence);
+        await setPersistence(firebaseAuth, indexedDBLocalPersistence);
         await signInWithRedirect(firebaseAuth, googleProvider);
       } catch (e) {
         // Re-throw original error if fallback also fails so UI can surface it.
