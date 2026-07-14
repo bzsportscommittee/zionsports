@@ -3,20 +3,23 @@ import {
   useContext,
   useEffect,
   useState,
-  type ReactNode,
+  ReactNode,
 } from "react";
+
 import {
+  User,
   onAuthStateChanged,
-  signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
+  GoogleAuthProvider,
   setPersistence,
   browserLocalPersistence,
-  indexedDBLocalPersistence,
   signOut,
-  type User,
 } from "firebase/auth";
-import { firebaseAuth, googleProvider } from "./firebase";
+
+import { firebaseAuth } from "./firebase";
+
+const googleProvider = new GoogleAuthProvider();
 
 interface AuthContextValue {
   user: User | null;
@@ -31,43 +34,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Handle redirect result from Google sign-in (CRITICAL FIX)
+  // Handle redirect result
   useEffect(() => {
-    const handleRedirectResult = async () => {
+    const initAuth = async () => {
       try {
-        const result = await getRedirectResult(firebaseAuth);
-        if (result?.user) {
-          console.log("Redirect sign-in successful");
-        }
+        await getRedirectResult(firebaseAuth);
       } catch (error) {
-        console.error("Redirect result error:", error);
+        console.error("Redirect Result Error:", error);
       }
     };
-    handleRedirectResult();
-  }, []);
 
-  // Monitor auth state changes
-  useEffect(() => {
-    const unsub = onAuthStateChanged(firebaseAuth, (u) => {
-      setUser(u);
+    initAuth();
+
+    const unsubscribe = onAuthStateChanged(firebaseAuth, (user) => {
+      console.log("Auth State:", user);
+
+      setUser(user);
       setLoading(false);
     });
-    return unsub;
+
+    return unsubscribe;
   }, []);
 
   const signInWithGoogle = async () => {
     try {
-      await setPersistence(firebaseAuth, indexedDBLocalPersistence);
-      await signInWithPopup(firebaseAuth, googleProvider);
-    } catch (err: unknown) {
-      // Fallbacks for environments where sessionStorage is unavailable or popups are blocked.
-      try {
-        await setPersistence(firebaseAuth, indexedDBLocalPersistence);
-        await signInWithRedirect(firebaseAuth, googleProvider);
-      } catch (e) {
-        // Re-throw original error if fallback also fails so UI can surface it.
-        throw err;
-      }
+      await setPersistence(firebaseAuth, browserLocalPersistence);
+
+      await signInWithRedirect(firebaseAuth, googleProvider);
+    } catch (error) {
+      console.error("Sign In Error:", error);
+      throw error;
     }
   };
 
@@ -76,14 +72,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signInWithGoogle, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        signInWithGoogle,
+        logout,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
 }
 
 export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
-  return ctx;
+  const context = useContext(AuthContext);
+
+  if (!context) {
+    throw new Error("useAuth must be used within AuthProvider");
+  }
+
+  return context;
 }

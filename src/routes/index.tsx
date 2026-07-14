@@ -205,72 +205,16 @@ function openInBrowser(browser: Browser, url: string) {
   }
 }
 
-function BrowserSelectionDialog({
-  open,
-  onClose,
-  onBrowserSelect,
-}: {
-  open: boolean;
-  onClose: () => void;
-  onBrowserSelect: (browser: Browser) => void;
-}) {
-  const browsers = getAvailableBrowsers();
-
-  return (
-    <AlertDialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <AlertDialogContent className="max-w-sm">
-        <AlertDialogHeader>
-          <AlertDialogTitle>Open in Browser</AlertDialogTitle>
-          <AlertDialogDescription>
-            Please select a browser to continue with Google sign-in. This will
-            provide a better experience and avoid sandbox restrictions.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <div className="space-y-2 py-4">
-          {browsers.map((browser) => (
-            <Button
-              key={browser.name}
-              type="button"
-              variant="outline"
-              className="w-full justify-start text-left"
-              onClick={() => {
-                onBrowserSelect(browser);
-                onClose();
-              }}
-            >
-              {browser.name}
-            </Button>
-          ))}
-        </div>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-  );
-}
-
 function Index() {
   const { user, loading, signInWithGoogle, logout } = useAuth();
   const [tab, setTab] = useState<"list" | "register">("list");
   const [editing, setEditing] = useState<Registration | null>(null);
   const [signingIn, setSigningIn] = useState(false);
   const [hasRegistrations, setHasRegistrations] = useState(false);
-  const [inAppBrowser, setInAppBrowser] = useState(false);
   const [showBrowserSelection, setShowBrowserSelection] = useState(false);
   const showRegisterTab = !hasRegistrations;
 
-  useEffect(() => {
-    setInAppBrowser(isInAppBrowser());
-  }, []);
-
   const handleSignIn = async () => {
-    // If in WhatsApp/in-app browser, show browser selection dialog
-    if (inAppBrowser) {
-      setShowBrowserSelection(true);
-      return;
-    }
-
     // Normal sign-in flow
     setSigningIn(true);
     try {
@@ -310,15 +254,6 @@ function Index() {
             </p>
           </CardHeader>
           <CardContent className="space-y-4">
-            {inAppBrowser && (
-              <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3">
-                <p className="text-sm text-yellow-800">
-                  ⚠️ <strong>Better experience:</strong> Please open this link
-                  in your device's default browser (Chrome, Safari, etc.) for a
-                  smoother login experience.
-                </p>
-              </div>
-            )}
             <Button
               onClick={handleSignIn}
               disabled={signingIn}
@@ -327,16 +262,10 @@ function Index() {
               {signingIn ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : null}
-              {inAppBrowser ? "Open in Browser" : "Sign in with Google"}
+              Sign in with Gmail Account
             </Button>
           </CardContent>
         </Card>
-
-        <BrowserSelectionDialog
-          open={showBrowserSelection}
-          onClose={() => setShowBrowserSelection(false)}
-          onBrowserSelect={handleBrowserSelect}
-        />
       </div>
     );
   }
@@ -363,9 +292,9 @@ function Index() {
               Zion Sports Event Registration - Aug 2026
             </h4>
             <p className="mt-2 text-sm text-muted-foreground sm:text-base">
-              All events will be held on weekends in August 1st/2nd and 8th/9th
-              (dates to be announced). Use this form to register your entire
-              family.
+              All events will be held on weekends in August 1st/2nd and 8th/9th.
+              Use this form to register your entire family, single participant
+              can participate in multiple events.
               <br />
               Assistance : <a href="tel:+919597971915">
                 {" "}

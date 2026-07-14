@@ -9,7 +9,7 @@ export default defineConfig(({ mode }) => {
   // const base =
   //   env.GITHUB_ACTIONS && repositoryName ? `/${repositoryName}/` : "/";
 
-  const base = "/zionsports/";
+  const base = "/";
 
   return {
     base,

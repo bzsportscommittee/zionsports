@@ -206,7 +206,7 @@ export function getSportsForAge(
   if (a >= 18 && a <= 40)
     sports.push("Basketball Free Throw Challenge", "Wall Sit Challenge");
   if (a >= 5) sports.push("Chess Tournament [Fees Rs.100]");
-  if (a >= 7 && a <= 15)
+  if (a >= 5 && a <= 15)
     sports.push(
       "Kids Cricket Match [Fees Rs.100]",
       "Kids Football Match [Fees Rs.100]",
